@@ -1,0 +1,1784 @@
+openapi: "3.0.9"
+
+info: 
+  title: "API para Integração Portal de Mensalistas/Credenciados"
+  version: "0.0.1"
+  contact: 
+    email: "joao.henrique-souza@wps-sa.com.br"
+  license: 
+    name: Confidencial
+  description: >-
+    Definição de API para integração de Sistemas com o Portal de Mensalistas e Credenciados 
+    
+    
+    Webservice que deverá ser disponibilizado no Enterprise da WPS de modo que seja
+    responsivo as requisições realizadas.
+    
+    
+    # Histórico de Revisões
+    
+    ---
+
+    | Revisão |    Data    |  Responsável | Descrição |
+    
+    |---------|:----------:|-------------:|----------:|
+    
+    | 0.0.1   | 17/06/2021 | João Henrique de Souza | Documento Inicial com definição de métodos envolvendo Mensalistas |
+    
+    |  |  |  |  |
+    
+    
+    # Estágios da Integração
+    
+    ---
+
+    1. Definição de Documentação e Arquitetura
+    
+    2. Exposição de métodos envolvendo Mensalistas
+
+    ### 3. **Validação da Documentação versão 0.0.1 pelo integrador**
+
+    4. Ajustes e Revalidação (se necessário) solicitadas pelo Integrador
+    
+    5. Exposição de métodos envolvendo Credenciados
+    
+    6. Validação da Documentação versão X.X.X pelo integrador
+    
+    7. Ajustes e Revalidação (se necessário) solicitadas pelo Integrador
+
+    8. Definição de Início do Desenvolvimento
+
+    9. Aguardando início do Desenvolvimento  
+
+    10. Desenvolvimento
+
+    11. Homologação e Ajustes
+
+    12. API em Produção
+
+
+
+    
+    # Definição da API
+
+    ---
+    
+    Visando tornar a integração mais responsiva e confiável, será disponibilizado um Webservice que será parte integrande do sistema ParkingPlus Enterprise.
+
+
+    Nesse WebService será disponilizados os serviços descritos neste documento de forma que a combinação no consumo de um ou mais serviços possibilitará ao integrador realize o processo completo de contratação de vagas, alteração e acompanhamento de pendências das vagas.
+    
+    
+    Em resumo a API deverá fornecer
+    
+    - Consulte Garagens
+    
+    - Consulta Vagas disponiveis
+    
+    - Cadastre Novos Clientes
+    
+    - Contrate Vagas com pagamento em BOLETO ou CARTAO
+    
+      - O Controle de emissão de boleto ou pagamento de cartão será feito exclusivamente pelo Integrador
+    
+    - Gere lançamento financeiro das Recorrencias. Pendências das mesmas.
+    
+    - Possibilite o integrador consultar as pendencias
+    
+    - Possibilite o integrador informar os pagamentos realizados (baixa de pagamentos)
+    
+      - Ao informar as baixas as vagas são devidamente atualizadas nas garagens
+
+    
+    Os métodos expostos nesta documentação envolvem apenas os necessários para realizar os processos acimas descritos. Ainda será necessário que cadastro de garagens, tabela de preços, etc, sejam realizados diretamente na plataforma do Enterprise seguindo a documentação e regras de negócios já existentes na plataforma.
+    
+    
+    O integerador será responsável por buscar as informações pertinentes aos lançamentos financeiros em aberto e baixados de acordo com sua necessidade, e também irá informar o sistema WPS quando necessitar efetuar uma baixa em um lançamento financeiro em aberto.
+
+
+    Já o Webservice deverá responder de imediato se a solicitação no serviço conseguiu ser atendida e, se não foi, deverá retornar informações suficientes para serem tratadas ou do lado WPS ou do Integrador.
+    
+    
+    
+
+    ## Segurança na API
+
+    A API utilizará o método de Bearer Token Authentication, onde ao realizar o Login pelos respectivos métodos, será fornecido um Token que deverá ser incluída em toda requisição feita no Webservice.
+    
+    
+    Esse Token terá validade de 5 minutos, devendo ser renovado após esse tempo.
+    
+    
+    Serão dois níveis de acesso, no primeiro que chamamos de usuário servidor, será um usuário gerencial cadastrado na platafornma do Enterprise que conseguirá acessar os métodos necessários para montar a interface de um front-end. Por exemplo, listar as garagens em um front-end dele que possibilite um usuário escolher onde quer contratar uma vaga.
+    
+    No outro nível, será uma autenticação de Cliente, ous seja, quem esta contratando a vaga. O cliente interessado em contratar uma vaga poderá se cadastrar pelo método de cadastro com um email e senha válidos. Essa combinação deverá ser fornecida no método de login para que ele obtenha o Token de acesso aos outros métodos.
+
+
+    ---
+    
+
+    **__Esta documentação será atualizada para ser responsiva quando o WS estiver em homologação__**
+    
+    
+    **__Esta documentação esta em versão de aprovação e poderá sofrer alterações sem prévia comunicação__**
+
+
+    ---
+      
+
+servers:    
+  - url: https://homologacao.parkingplus.com.br/servicos/integracaoportalmensalista/v2
+
+paths:
+  /login:
+    post:
+      tags:
+        - Autenticação
+      summary: Autenticação de Cliente
+      description: >- 
+        Método para logar um cliente no WS e possibilitar realizar contratações de vagas.
+        
+        
+        Ao efetuar a chamada de login no sistema com credenciais válidas, é emitido um token de autenticação que deverá ser enviado no header das chamadas aos outros webservices de integração que necessitam de autenticação.
+        
+        
+        Após 5 minutos de inatividade este token é expirado e, para acessar os webservices é necessário se autenticar novamente.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+                
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '500':
+          $ref: '#/components/responses/Error500'
+                  
+  /login_servidor:
+    post:
+      tags:
+        - Autenticação
+      summary: Autenticação do Servidor
+      description: >- 
+        Método para que o usuário do Enterprise consiga logar no WS. Um usuário do tipo cliente não conseguirá usar esse método.
+        
+      
+        Ao efetuar a chamada de login no sistema com credenciais válidas, é emitido um token de autenticação que deverá ser enviado no header das chamadas aos outros webservices de integração que necessitam de autenticação.
+        
+        
+        Após 5 minutos de inatividade este token é expirado e, para acessar os webservices é necessário se autenticar novamente.
+        
+        
+        Este login deve ser usado para funções de Front End, como por exemplo obter as garagens e/ou vagas livres. Normalmente serão métodos para obter informações que indepem de ser um usuário do tipo cliente que está logado.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginServidorRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Token'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '500':
+          $ref: '#/components/responses/Error500'
+                  
+  /clientes:
+    post:
+      tags:
+        - Registro do Cliente
+      summary: Cadastro de um novo Cliente
+      description: >- 
+        Método para cadastrar um novo cliente no sistema de Mensalistas.
+        
+      
+        Ao efetuar a chamada de cadastro de novo cliente no sistema, os dados são validados e o usuário é autenticado no sistema. Assim, o token de autenticação é enviado como parte retorno e permanece válido por até 5 minutos de inatividade.
+        
+        
+        Esse token tambem poderá ser obtido pelo método login.
+        
+        
+        IMPORTANTE: Os dados de cpfCnpj, cep e telefone, podem ser enviados com ou sem máscara.
+        
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CadastroClienteRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadastroClienteResponse'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '500':
+          $ref: '#/components/responses/Error500'    
+
+    get:
+      security:
+        - Authorization: []
+      tags:
+        - Registro do Cliente
+      summary: Consulta dados de cadastro do cliente (Somente Cliente)
+      description: >- 
+        Ao efetuar a chamada de obter dados de cadastro de um cliente no sistema, o token da sessão (informado no header) será validado. Se for um Token de Cliente, os dados do cliente será retornado e se for um Token de Servidor um erro 400 será retornado.
+        
+        
+        Um cliente só consegue consultar o seu proprio cadastro
+        
+
+        IMPORTANTE: Apesar dos campos de cpfCnpj, cep e telefone podem ser enviados com ou sem máscara ao cadastrar um cliente, eles sempre serão retornados no formato exemplificado abaixo.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsultaClienteResponse'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'          
+        '500':
+          $ref: '#/components/responses/Error500'
+
+  /clientes/{cliente_id}:
+    get:
+      security:
+        - Authorization: []
+      tags:
+        - Registro do Cliente
+      summary: Consulta dados de cadastro do cliente (Somente servidor)
+      description: >- 
+        Ao efetuar a chamada de obter dados de cadastro de um cliente no sistema, o token da sessão (informado no header) será validado. Se for um Token de Servidor, os dados do ID do Cliente informado serão retornados e se for um Token de Cliente, um erro 401 será retornado.
+        
+
+        IMPORTANTE: Apesar dos campos de cpfCnpj, cep e telefone podem ser enviados com ou sem máscara ao cadastrar um cliente, eles sempre serão retornados no formato exemplificado abaixo.
+      parameters:
+        - name: cliente_id
+          in: path
+          description: Id do Cliente para Consulta
+          required: true
+          schema:
+            type: integer        
+            format: int64
+            example: 12584
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsultaClienteResponse'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'          
+        '500':
+          $ref: '#/components/responses/Error500'          
+  
+    put:
+      security:
+        - Authorization: []
+      tags:
+        - Registro do Cliente
+      summary: Altera cadastro do Cliente
+      description: >- 
+        Ao efetuar a chamada de alteração de um cliente no sistema, os dados são validados e o cliente é atualizado.
+        
+
+        IMPORTANTE: Os dados de cpfCnpj, cep e telefone, podem ser enviados com ou sem máscara.
+        
+
+        Os dados de email e senha não podem ser alterados por meio dessa solicitação porque são utilizados em conjunto com o "token" para fazer a autenticação do cliente. Para alterar a senha, utilize o web service específico para alteração de senha.
+      parameters:
+        - name: cliente_id
+          in: path
+          description: Id do Cliente para Alteração
+          required: true
+          schema:
+            type: integer        
+            format: int64
+            example: 12547
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AlteraClienteRequest'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                 $ref: '#/components/schemas/ConsultaClienteResponse'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'             
+        '500':
+          $ref: '#/components/responses/Error500'          
+          
+  /clientes/senha:
+    put:
+      security:
+        - Authorization: []
+      tags:
+        - Registro do Cliente
+      summary: Altera senha do cliente (somente cliente)
+      description: >- 
+        Ao efetuar a chamada de alteração de senha, o cliente deve estar autenticado no sistema e enviar a senha antiga.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              description: Alteração da Senha do cliente logado
+              type: object
+              properties:
+                senha: 
+                  type: string
+                  example: "newPasswd"
+                senha_antiga: 
+                  type: string
+                  example: "oldPasswd"
+              required:
+                - senha
+                - senhaAntiga
+              
+      responses:
+        '204':
+          description: OK (No content)
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'             
+        '500':
+          $ref: '#/components/responses/Error500'           
+          
+  /garagens:
+    get:
+      security:
+        - Authorization: []
+        
+      tags:
+        - Garagens da Empresa
+      summary: Listar garagens de empresa
+      description: >- 
+        Retorna a lista de garagens da empresa. 
+        
+        
+        Caso as garagens não tenham sido alteradas desde o timestamp enviado, o sistema retorna o status 304. 
+        
+        
+        Para listar todas as garagens deve-se enviar este parâmetro zerado.
+        
+        
+        O usuário (ou um usuario do tipo servidor) deverão estar conectados para usar esse recurso
+      parameters:
+        - name: ultima_chamada
+          in: query
+          description: Data/Hora da Ultima chamada a este método em Milisegundos desde o UNIX Epoch. Informe 0 para listar todas as garagens
+          required: true
+          schema:
+            type: string
+          example:
+            1449573146150
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:  
+                  $ref: '#/components/schemas/DadosGaragemResponse'
+        '304':
+          description: Not modified (Retorno sem corpo)
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '500':
+          $ref: '#/components/responses/Error500'
+  
+  /garagens/vagas:          
+    get:
+      security:
+        - Authorization: []
+      tags:
+        - Vagas
+      summary: Listar vagas contratadas
+      description: >- 
+        Esta chamada quando realizada por um cliente irá listar as vagas contratadas do mesmo.
+        
+        
+        Quando chamada por um usuário servidor, ele irá necessitar do CPF/CNPJ para realizar a consulta
+      parameters:
+        - name: cpf_cnpj
+          in: query
+          description: CPF/CNPJ da consulta. Só tera efeito e será obrigatória para sessões de usuário servidor
+          required: false
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsultaVagasResponse'
+        '204':
+          description: No content - Sem vagas cadastradas
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '500':
+          $ref: '#/components/responses/Error500'            
+
+  /garagens/{garagem_id}/vagas:
+    post:
+      security:
+        - Authorization: []
+      tags:
+        - Vagas
+      summary: Cadastra novas vagas para o Cliente Logado
+      description: >- 
+        Esta chamada reserva as vagas para o usuário e realiza os procedimentos necessários para criar um lançamento financeiro da cobrança de acordo com as regras de negocio estabelecidas para contratação e recorrencia.
+      parameters:
+        - name: garagem_id
+          in: path
+          description: ID da Garagem que irá cadastrar a vaga
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CadastroVagaRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadastroVagaResponse'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '500':
+          $ref: '#/components/responses/Error500'
+
+  /garagens/{garagem_id}/vagas/{grupo_vaga_id}:
+    get:
+      security:
+        - Authorization: []
+      tags:
+        - Vagas 
+      summary: Exibe uma vaga em especifico
+      description: >- 
+        Esta chamada irá consultar uma vaga específica na garagem.
+        
+        
+        Caso o Token de autenticação seja de um cliente, ele conseguirá visualizar somente se a vaga consultada for sua.
+        
+        
+        Se o Token for do usuário servidor, ele conseguirá ver qualquer vaga.
+      parameters:
+        - name: garagem_id
+          in: path
+          description: ID da Garagem que irá consultar vaga(s)
+          required: true
+          schema:
+            type: integer
+        - name: grupo_vaga_id
+          in: path
+          description: ID do Grupo da Vaga que pode ser obtido atraves da consulta da mesma
+          required: true
+          schema:
+            type: integer    
+      responses:
+        '200':
+          description: OK (No content)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsultaVagaEspecificaResponse'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'             
+        '500':
+          $ref: '#/components/responses/Error500'
+  
+    delete:
+      security:
+        - Authorization: []
+      tags:
+        - Vagas 
+      summary: Cancela vagas de cliente
+      description: >- 
+        Esta chamada realiza o cancelamento de um grupo de vagas por meio de uma solicitação do cliente ou do servidor. 
+        
+        
+        Após cancelamento as vagas deste grupo ficarão disponíveis até o fim do último período pago. Use o campo cancelamento_solicitado para visualizar isso
+      parameters:
+        - name: garagem_id
+          in: path
+          description: ID da Garagem que irá consultar vaga(s)
+          required: true
+          schema:
+            type: integer
+        - name: grupo_vaga_id
+          in: path
+          description: ID do Grupo da Vaga que pode ser obtido atraves da consulta da mesma
+          required: true
+          schema:
+            type: integer    
+      responses:
+        '204':
+          description: OK (No content)
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'             
+        '500':
+          $ref: '#/components/responses/Error500'              
+            
+  /garagens/{garagem_id}/vagas/{grupo_vaga_id}/reduzir:
+    post:
+      security:
+        - Authorization: []
+      tags:
+        - Vagas
+      summary: Reduz quantidade de vagas de um grupo
+      description: >- 
+        Esta chamada sinaliza de que a partir da data da próxima cobrança, o número de vagas do grupo deve ser alterado, e o valor de cobrança também deve ser alterado. Caso o pagamento do Grupo de Vagas seja via Portal Externo, uma chamada à API de Assinaturas deve ser feita para alterar o valor da Assinatura.
+        
+
+        Esta chamada serve somente para diminuir o número de vagas do Grupo, para um valor nunca menor do que 1.
+      parameters:
+        - name: garagem_id
+          in: path
+          description: ID da Garagem
+          required: true
+          schema:
+            type: integer
+        - name: grupo_vaga_id
+          in: path
+          description: ID do Grupo da Vaga que pode ser obtido atraves da consulta da mesma
+          required: true
+          schema:
+            type: integer            
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              description: Consulta de vagas do Cliente na garagem
+              type: object
+              properties:
+                quantidade_reduzir:
+                  type: integer
+                  example: 5
+              required:
+                - quantidade_reduzir
+      responses:
+        '204':
+          description: OK (No content)
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'             
+        '500':
+          $ref: '#/components/responses/Error500'  
+
+  /garagens/{garagem_id}/vagas/{grupo_vaga_id}/condutores:
+    post:
+      security:
+        - Authorization: []
+      tags:
+        - Condutores 
+      summary: Adiciona condutor a grupo de vagas
+      description: >- 
+        Adiciona um condutor a um grupo de vagas.
+      parameters:
+        - name: garagem_id
+          in: path
+          description: ID da Garagem da vaga
+          required: true
+          schema:
+            type: integer
+        - name: grupo_vaga_id
+          in: path
+          description: ID do Grupo da Vaga que pode ser obtido atraves da consulta da mesma
+          required: true
+          schema:
+            type: integer   
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CadastroCondutoresRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadastroCondutoresResponse'
+                
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '500':
+          $ref: '#/components/responses/Error500'            
+    
+    get:
+      security:
+        - Authorization: []
+      tags:
+        - Condutores 
+      summary: Lista condutores de um grupo de vagas
+      description: >- 
+        Retorna todos os condutores de uma determinada vaga
+      parameters:
+        - name: garagem_id
+          in: path
+          description: ID da Garagem que irá consultar vaga(s)
+          required: true
+          schema:
+            type: integer
+        - name: grupo_vaga_id
+          in: path
+          description: ID do Grupo da Vaga que pode ser obtido atraves da consulta da mesma
+          required: true
+          schema:
+            type: integer   
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadastroCondutoresResponse'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '500':
+          $ref: '#/components/responses/Error500'            
+    
+  /garagens/{garagem_id}/vagas/{grupo_vaga_id}/condutores/{condutor_id}:
+    put:
+      security:
+        - Authorization: []
+      tags:
+        - Condutores 
+      summary: Alterar nome do condutor de um grupo de vagas
+      description: >- 
+        Alterar nome do condutor de um grupo de vagas
+      parameters:
+        - name: garagem_id
+          in: path
+          description: ID da Garagem que irá consultar vaga(s)
+          required: true
+          schema:
+            type: integer
+        - name: grupo_vaga_id
+          in: path
+          description: ID do Grupo da Vaga que pode ser obtido atraves da consulta da mesma
+          required: true
+          schema:
+            type: integer
+        - name: condutor_id
+          in: path
+          description: ID do Condutor
+          required: true
+          schema:
+            type: integer           
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                nome_condutor:
+                  description: "Nome do Condutor para alteração"
+                  type: string
+                  example: "Ringo Star"
+              required:
+                - nome_condutor
+      responses:
+        '204':
+          description: OK (No content)
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'             
+        '500':
+          $ref: '#/components/responses/Error500'             
+  
+    delete:
+      security:
+        - Authorization: []
+      tags:
+        - Condutores 
+      summary: Remove condutor de um grupo de vagas
+      description: >- 
+        Remove condutor de um grupo de vagas.
+        
+        
+        OBS: Ao remover um condutor, seus veículos também são removidos automaticamente.
+      parameters:
+        - name: garagem_id
+          in: path
+          description: ID da Garagem que irá consultar vaga(s)
+          required: true
+          schema:
+            type: integer
+        - name: grupo_vaga_id
+          in: path
+          description: ID do Grupo da Vaga que pode ser obtido atraves da consulta da mesma
+          required: true
+          schema:
+            type: integer
+        - name: condutor_id
+          in: path
+          description: ID do Condutor
+          required: true
+          schema:
+            type: integer           
+      responses:
+        '204':
+          description: OK (No content)
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'             
+        '500':
+          $ref: '#/components/responses/Error500'    
+
+  /garagens/{garagem_id}/vagas/{grupo_vaga_id}/condutores/{condutor_id}/veiculos:
+    post:
+      security:
+        - Authorization: []
+      tags:
+        - Veículos 
+      summary: Adiciona veículos para um condutor
+      description: >- 
+        Adiciona veículos para um condutor
+      parameters:
+        - name: garagem_id
+          in: path
+          description: ID da Garagem que irá consultar vaga(s)
+          required: true
+          schema:
+            type: integer
+        - name: grupo_vaga_id
+          in: path
+          description: ID do Grupo da Vaga que pode ser obtido atraves da consulta da mesma
+          required: true
+          schema:
+            type: integer   
+        - name: condutor_id
+          in: path
+          description: ID do Condutor
+          required: true
+          schema:
+            type: integer             
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CadastroVeiculoCondutorRequest'
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CadastroVeiculoCondutorResponse'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '500':
+          $ref: '#/components/responses/Error500'
+          
+    get:
+      security:
+        - Authorization: []
+      tags:
+        - Veículos 
+      summary: Consulta veículos de um condutor
+      description: >- 
+        Consulta veículos de um condutor
+      parameters:
+        - name: garagem_id
+          in: path
+          description: ID da Garagem que irá consultar vaga(s)
+          required: true
+          schema:
+            type: integer
+        - name: grupo_vaga_id
+          in: path
+          description: ID do Grupo da Vaga que pode ser obtido atraves da consulta da mesma
+          required: true
+          schema:
+            type: integer   
+        - name: condutor_id
+          in: path
+          description: ID do Condutor
+          required: true
+          schema:
+            type: integer             
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConsultaVeiculosResponse'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '500':
+          $ref: '#/components/responses/Error500'          
+          
+  /garagens/{garagem_id}/vagas/{grupo_vaga_id}/condutores/{condutor_id}/veiculos/{veiculo_id}:
+    put:
+      security:
+        - Authorization: []
+      tags:
+        - Veículos 
+      summary: Altera veículos de um condutor
+      description: >- 
+        Altera veículos de um condutor
+      parameters:
+        - name: garagem_id
+          in: path
+          description: ID da Garagem que irá consultar vaga(s)
+          required: true
+          schema:
+            type: integer
+        - name: grupo_vaga_id
+          in: path
+          description: ID do Grupo da Vaga que pode ser obtido atraves da consulta da mesma
+          required: true
+          schema:
+            type: integer   
+        - name: condutor_id
+          in: path
+          description: ID do Condutor
+          required: true
+          schema:
+            type: integer             
+        - name: veiculo_id
+          in: path
+          description: ID do Veiculo
+          required: true
+          schema:
+            type: integer                 
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Veiculo'
+      responses:
+        '204':
+          description: OK (No Content)
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '500':
+          $ref: '#/components/responses/Error500'          
+          
+    delete:
+      security:
+        - Authorization: []
+      tags:
+        - Veículos 
+      summary: Remove veículos de um condutor
+      description: >- 
+        Remove veículos de um condutor
+      parameters:
+        - name: garagem_id
+          in: path
+          description: ID da Garagem que irá consultar vaga(s)
+          required: true
+          schema:
+            type: integer
+        - name: grupo_vaga_id
+          in: path
+          description: ID do Grupo da Vaga que pode ser obtido atraves da consulta da mesma
+          required: true
+          schema:
+            type: integer   
+        - name: condutor_id
+          in: path
+          description: ID do Condutor
+          required: true
+          schema:
+            type: integer             
+        - name: veiculo_id
+          in: path
+          description: ID do Veiculo
+          required: true
+          schema:
+            type: integer                 
+      responses:
+        '204':
+          description: OK (No Content)
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '500':
+          $ref: '#/components/responses/Error500'            
+          
+  /lancamentosfinanceiros:
+    get:
+      security:
+        - Authorization: []
+      tags:
+        - Lançamentos Financeiros (Pêndencias)
+      summary: >-
+        Lançamentos Financeiros criados no sistema
+      description: >-
+        Serviço para listar todos os lançamentos financeiros existentes criados a partir de uma determinada data
+      parameters:
+        - name: data_criacao
+          in: query
+          description: >-
+            Data no formato YYYYMMDD da criação do lançamento financeiro. 
+            Será retornado todos os registros que foram criados a partir da data informada
+          required: false
+          schema:
+            type: string
+            format: yyyyMMdd
+            example: 20210501
+        - name: data_vencimento
+          description: >-
+            Data no formato YYYYMMDD do vencimento do lançamento financeiro. 
+            Será retornado todos os registros que tem vencimento a partir da data informada
+          in: query
+          required: false
+          schema:
+            type: string
+            format: yyyyMMdd
+            example: 20210530
+        - name: tipo_lancamento
+          description: >-
+            Tipo do Lançamento Financeiro.
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/TipoLancamentoEnum'
+        - name: baixa_efetuada
+          description: >-
+            Informa se quer retornar somente os lancamentos com ou sem baixa efetuada
+          in: query
+          required: false
+          schema:
+            type: string
+            default: qualquer
+            enum:
+              - qualquer
+              - com_baixas
+              - sem_baixas
+            example: sem_baixas
+        - name: forma_pagamento
+          description: >-
+            Forma de Pagamento do Lançamento.
+          in: query
+          required: false
+          schema:
+            $ref: '#/components/schemas/TipoPagamentoEnum'
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/LancamentosFinanceirosResponse'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '500':
+          $ref: '#/components/responses/Error500'            
+          
+  /lancamentosfinanceiros/{lancamento_id}:
+    get:
+      security:
+        - Authorization: []
+      tags:
+        - Lançamentos Financeiros (Pêndencias)
+      summary: >-
+        Lançamento Financeiro especifico criado no sistema
+      description: >-
+        Serviço para retornar um lancamento financeiro especifico criado no sistema
+      parameters:
+        - name: lancamento_id
+          description: >-
+            ID do Lancamento que deseja consultar
+          in: path
+          required: true
+          schema:
+            type: integer
+            format: int64
+            example: 654789
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LancamentosFinanceirosResponse'
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '500':
+          $ref: '#/components/responses/Error500'   
+      
+  /lancamentosfinanceiros/baixas:
+    post:
+      security:
+        - Authorization: []
+      tags:
+        - Lançamentos Financeiros (Pêndencias)    
+      summary: >-
+        Recebe uma solicitação de baixa de uma lançamento financeiro
+      description: >-
+        Serviço para efetuar uma baixa de lançamento financeiro na WPS
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              items:
+                $ref: '#/components/schemas/BaixaLancamentoFinanceiroRequest'
+      responses:
+        '204':
+          description: OK (No Content)
+        '400':
+          $ref: '#/components/responses/Error400'
+        '401':
+          $ref: '#/components/responses/Error401'
+        '500':
+          $ref: '#/components/responses/Error500'       
+       
+      
+components:
+  securitySchemes:
+    Authorization:
+      type: http
+      scheme: bearer
+      description: Token obtido através dos métodos de Login
+  
+  responses:
+    Error400:
+      description: Error - Bad Request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+            
+    Error401:
+      description: Error - Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+            
+    Error500:
+      description: Error - Internal Server Error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    Error:
+      description: Estrutura de Erro das requisições
+      type: object
+      properties:
+        codigo:
+          type: integer
+          example: 999
+        mensagem:
+          type: string
+          example: "Descrição do Erro."
+      required:
+        - codigoErro
+
+    Token:
+      description: Token para informar no Header dos metodos
+      type: object
+      properties:
+        token:
+          type: string
+          example: "f7eea49c9f233c389e7bc9397c60eda2aa19a4a2"
+    
+    Senha:
+      description: Senha do Cliente
+      type: object
+      properties:
+        senha:
+          description: Senha de acesso ao WS do cliente. Utilizará no método "login"
+          type: string
+          example: "123456"
+      required:
+        - senha
+    
+    Email:
+      description: Email do Cliente
+      type: object
+      properties:
+        email:
+          description: Email principal do cliente. Utilizará no método "login"
+          type: string
+          example: "johndoe@domain.com"
+      required:
+        - email
+
+    LoginRequest:
+      description: Request de Login de Usuário
+      allOf:
+        - $ref: '#/components/schemas/Email'
+        - $ref: '#/components/schemas/Senha'      
+             
+    LoginResponse:
+      description: Response de Login de Usuário
+      allOf:
+        - $ref: '#/components/schemas/Token'
+        - type: object
+          properties:
+            expirado:
+              description: Informa se o Token esta expirado ou nao
+              type: boolean
+              example: false
+      
+    LoginServidorRequest:
+      description: Request do Login de Servidor
+      allOf:
+        - type: object
+          properties:
+            usuario:
+              description: Nome do usuário Enterprise
+              type: boolean
+              example: "user"
+        - $ref: '#/components/schemas/Senha'      
+      required:
+        - usuario
+      
+    DadosCliente:
+      description: Dados do Cliente
+      type: object
+      properties:
+        nome_razao: 
+          description: Nome do Cliente ou Razão Social da Empresa
+          type: string
+          example: "John Doe"
+        cpf_cnpj: 
+          description: CPF ou CNPJ do cliente
+          type: string
+          example: "10406098050"
+        telefone: 
+          description: 'Telefone do cliente. Pode ser informado com ou sem máscara: (99)9999-99999'
+          type: string
+          example: "55987654321"
+        rg_ie: 
+          description: RG e/ou Inscrição Estadual do Cliente
+          type: string
+          example: "123456789"
+        email_adicional: 
+          description: Email adicional que pode ser usado para recuperação de senha
+          type: string
+          example: "johndoe2@domain.com"
+        telefone_adicional: 
+          description: Um telefone adicional do cliente
+          type: string
+          example: "(35)9876-54321"
+        data_de_nascimento:
+          description: Data de Nascimento em Milisegundos desde o UNIX Epoch
+          type: integer
+          format: int64
+          example: 1450813398449
+        cep: 
+          description: 'CEP do Cliente. Pode ser enviado no formato: 00000-00'
+          type: string
+          example: "00000000"
+        cidade: 
+          type: string
+          example: "São Paulo"
+        uf: 
+          type: string
+          example: "SP"
+        logradouro:
+          description: Endereço do Cliente
+          type: string
+          example: "Abbey Road"
+        numero: 
+          type: string
+          example: "248"
+        bairro: 
+          type: string
+          example: ""
+        complemento: 
+          type: string
+          example: ""
+        observacoes:
+          type: string
+          example: ""
+      required:
+        - nome_razao
+        - cpf_cnpj
+        - telefone
+    
+    IdCliente:
+      description: "ID do Cliente cadastrado no sistema WPS"
+      type: object
+      properties:
+        id_cliente: 
+          type: integer
+          format: int64
+          example: 12547
+      
+    CadastroClienteRequest:
+      allOf:
+        - $ref: '#/components/schemas/Email'
+        - $ref: '#/components/schemas/Senha'      
+        - $ref: '#/components/schemas/DadosCliente'
+        
+    CadastroClienteResponse:
+      allOf:
+        - $ref: '#/components/schemas/Token'
+        - $ref: '#/components/schemas/IdCliente'
+        - $ref: '#/components/schemas/Email'
+        - $ref: '#/components/schemas/DadosCliente'
+        
+    ConsultaClienteResponse:
+      allOf:
+        - $ref: '#/components/schemas/IdCliente'
+        - $ref: '#/components/schemas/Email'
+        - $ref: '#/components/schemas/DadosCliente'
+      
+    AlteraClienteRequest:
+      $ref: '#/components/schemas/DadosCliente'
+    
+    Garagem:
+      description: Dados cadastrais da Garagem
+      type: object
+      properties:
+        id_garagem: 
+          description: ID unico da garagem para a empresa
+          type: integer
+          example: 1
+        nome: 
+          description: Nome da Garagem
+          type: string
+          example: "Garagem 1"
+        endereco: 
+          type: string
+          example: 'Rua Abbey Road, 248'
+        cidade:
+          type: string
+          example: "São Paulo"
+        bairro: 
+          type: string
+          example: "Bairro do Limão"
+        uf:
+          type: string
+          example: "SP"
+        latitude: 
+          description: Coordenadas para localização geográfica da garagem
+          type: string
+          example: '-21.2484875'
+        longitude: 
+          description: Coordenadas para localização geográfica da garagem
+          type: string
+          example: '-45.001374699999985'
+          
+    TiposMensalidade:
+      description: Tipos das Mensalidades na Garagem
+      type: object
+      properties:
+        id_tipo_mensalidade: 
+          description: "ID unico do tipo da mensalidade cadastrada na garagem"
+          type: integer
+          example: 3
+        valor: 
+          description: "Valor da mensalidade. Não usar pontuação. Ex: R$ 123,00 = 12300"
+          type: integer
+          example: 12300
+        nome: 
+          description: "Nome do Tipo da Mensalidade"
+          type: string
+          example: "Diurno Carros"
+        vagas_livres: 
+          description: "Qtde de vagas destinadas a esse grupo na garagem"
+          type: integer
+          example: 92
+        detalhe:
+          description: "Observações e Detalhes gerais da vaga"
+          type: string
+          example: "Atenção ao horario da vaga: 12:00 as 19:00"
+
+    DadosGaragemResponse:
+      description: Response com Dados da Garagem
+      type: object
+      properties:
+        data_hora_consulta:
+          description: Data/Hora Atual da consulta em Milisegundos desde o UNIX Epoch.
+          type: integer
+          format: int64
+          example: 1449576703367
+        garagens:
+          type: array
+          items:
+            allOf:
+              - type: object
+                properties:
+                  tipos_mensalidade:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TiposMensalidade'      
+              - $ref: '#/components/schemas/Garagem'
+
+    TipoPagamentoEnum:
+      description: "Forma de pagamento da mensalidade"
+      type: string
+      enum:
+        - BOLETO
+        - TEF_EXTERNO
+        - DINHEIRO
+        - FOUR_ALL
+        - OUTROS
+      example: BOLETO
+      
+    Condutor:
+      description: "Dados do Condutor do Veículo"
+      type: object
+      properties:
+        nome:
+          description: "Nome do condutor do veículo"
+          type: string
+          example: "John Doe Junior"
+        veiculos:
+          type: array
+          items:  
+            $ref: '#/components/schemas/Veiculo'
+      required: 
+        - nome
+        - veiculos      
+        
+    Veiculo:
+      description: Dados do Veículo
+      type: object
+      properties:
+        placa:
+          description: "Placa do veículo que pode utilizar a Vaga"
+          type: string
+          example: "AAA-1A10"
+        marca: 
+          type: string
+          example: "Ford"
+        modelo:
+          type: string
+          example: "Fiesta"
+        cor: 
+          type: string
+          example: "Azul"
+        tem_seguro: 
+          description: "Informar se o veículo possui algum seguro. Se for sim, será obrigatório informar o vencimento do mesmo"
+          type: boolean
+          example: true
+        seguradora: 
+          description: "Nome da seguradora se existir"
+          type: string
+          example: "Allianz Seguros"
+        vencimento_seguro: 
+          description: "Obrigatório caso o veículo possua seguro. Data em Milisegundos desde o UNIX Epoch."
+          type: integer
+          format: int64
+          example: 1231321321
+      required: 
+        - placa
+        - modelo
+        - cor
+        - tem_seguro
+
+    Vaga:
+      description: Dados da Vaga cadastrada
+      type: object
+      properties:
+        data_cadastro: 
+          description:  "Data de Cadastro da Vaga Milisegundos desde o UNIX Epoch"
+          type: integer
+          format: int64
+          example: 1453495911141
+        data_validade: 
+          description: "Data de Validade da Vaga Milisegundos desde o UNIX Epoch. É atualiza conforme pagamentos são realizados"
+          type: integer
+          format: int64      
+          example: 1453495911141
+        cancelamento_solicitado:
+          description: "Cancelamento da Vaga foi solicitado e será executado no próximo ciclo de pagamento"
+          type: boolean
+          example: false
+        status: 
+          description: "Status atual da Vaga. TODO: informar ENUM"
+          type: integer
+          example: 0
+        quantidade:
+          description: "Quantidade de vagas que esse contrato possui"
+          type: integer
+          example: 2
+        quantidade_condutores: 
+          description: "Quantidade de condutores que a vaga possui"
+          type: integer
+          example: 2
+        valor_unitario: 
+          description: "Valor unitário atual da vaga. É utilizado para as recorrências. Não usar pontuação. EX: R$ 100,00 = 10000"
+          type: integer
+          example: 10000
+        valor_total:
+          description: "Valor de total as vagas contratadas: Valor Unitario x quantidade"
+          type: integer  
+          example: 20000
+        dia_vencimento:
+          description: "Dia de vencimento da vaga. Indica o ciclo de recorrência."
+          type: integer
+          example: 15
+        id_tipo_mensalidade: 
+          description: "ID da tabela de preços da mensalidade"
+          type: integer
+          example: 1
+        tipo_pagamento:
+          $ref: '#/components/schemas/TipoPagamentoEnum'          
+        id_garagem:
+          description: ID unico da garagem da VAGA
+          type: integer
+          example: 1
+        id_grupo: 
+          description: ID do Grupo de Vagas. Funciona como se fosse o id unico dessa vaga.
+          type: integer
+          example: 1050
+        condutores:
+          type: array
+          items:
+            allOf:
+              - type: object
+                properties:
+                  id_condutor:
+                    description: "ID do Condutor do veículo"
+                    type: integer
+                    example: 4597
+              - $ref: '#/components/schemas/Condutor'
+
+    ConsultaVagasResponse:
+      description: Consulta de vagas do Cliente na garagem
+      type: array
+      items:  
+        $ref: '#/components/schemas/Vaga'
+
+    DetalheVagas:
+      description: "Cadastro de Vagas na Garagem"
+      type: object
+      properties:
+        tipo_pagamento:
+          $ref: '#/components/schemas/TipoPagamentoEnum'
+        id_tipo_mensalidade:
+          description: "ID do tipo de mensalidade contratado para a vaga"
+          type: integer
+          example: 1
+        quantidade:
+          description: "Quantidade de vagas que serão contratadas"
+          type: integer
+          example: 2
+        quantidade_condutores:
+          description: "Quantidade de condutores que poderão usar as vagas"
+          type: integer
+          example: 1
+        condutores:
+          description: "Descrição dos condutores da(s) vaga(s)"
+          type: array
+          items:  
+            $ref: '#/components/schemas/Condutor'
+      required: 
+        - tipo_pagamento
+        - id_tipo_mensalidade
+        - quantidade
+        - quantidade_condutores
+        - condutores
+
+    CadastroVagaRequest:
+      $ref: '#/components/schemas/DetalheVagas'
+        
+    IdGrupoVaga:
+      description: "ID do Grupo de Vaga"
+      type: object
+      properties:
+        id_grupo_vaga: 
+          type: integer
+          format: int64
+          example: 1547
+        
+    CadastroVagaResponse:
+      allOf:
+        - $ref: '#/components/schemas/IdGrupoVaga'
+        - $ref: '#/components/schemas/DetalheVagas'
+      
+    ConsultaVagaEspecificaResponse:
+      allOf:
+        - $ref: '#/components/schemas/IdGrupoVaga'
+        - $ref: '#/components/schemas/Vaga'
+    
+    CadastroCondutoresRequest:
+      description: Cadastro de Novos Condutores
+      type: object
+      properties:
+        condutores:
+          type: array
+          items:
+            $ref: '#/components/schemas/Condutor'
+    
+    CadastroCondutoresResponse:
+      description: Retorno de Condutores
+      type: array
+      items:
+        properties:
+          id_condutor:
+            description: "ID unico do condutor"
+            type: integer
+            example: 1354
+          nome:
+            description: Nome do Condutor
+            type: string
+            example: "John Doe Junior"
+          veiculos:
+            type: array
+            items:  
+              $ref: '#/components/schemas/Veiculo'
+        
+    CadastroVeiculoCondutorRequest:
+      description: Cadastro de um ou mais veículos para um determinado condutor
+      type: array
+      items:
+        $ref: '#/components/schemas/Veiculo'
+        
+    CadastroVeiculoCondutorResponse:
+      description: Response do Cadastro de um ou mais veículos para um determinado condutor
+      type: array
+      items:
+        allOf:
+          - type: object
+            properties:
+              id_veiculo:
+                description: "ID do Veiculo"
+                type: integer
+                example: 1547              
+          - $ref: '#/components/schemas/Veiculo'        
+        
+    ConsultaVeiculosResponse:
+      description: Retorno de Consulta de Veículos
+      type: array
+      items:
+        allOf:
+          - type: object
+            properties:
+              id_veiculo:
+                description: "ID do veículo"
+                type: integer
+                example: 5463
+          - $ref: '#/components/schemas/Veiculo'
+
+    TipoLancamentoEnum:
+      description: "Tipo de Lançamento Financeiro"
+      type: string
+      enum:
+        - MENSALISTA
+        - SELOS
+      example: MENSALISTA
+      
+    TipoStatusLancamentoFinanceiroEnum:
+      description: "Status da Vaga"
+      type: string
+      enum:
+        - ABERTO
+        - BAIXADO
+        - CANCELADO
+        - BAIXADO ACORDO
+        - INADIMPLENTE
+        - INATIVO
+
+    LancamentosFinanceirosResponse:
+      $ref: '#/components/schemas/DetalhesLancamentosFinanceiros'
+
+    DetalhesLancamentosFinanceiros:
+      type: object
+      properties:
+        id:
+          description: "Identificador único deste lançamento. Deve ser utilizado na realização da baixa."
+          type: integer
+          format: int64
+          example: 654789
+        tipo_lancamento:
+          $ref: '#/components/schemas/TipoLancamentoEnum'
+        data_lancamento:
+          description: "Data que o lançamento financeiro foi criado. Em Milisegundos desde o UNIX Epoch."
+          type: integer
+          format: int64
+          example: 1449573146150
+        data_vencimento:
+          description: "Data que de vencimento para que a baixa de pagamento da vaga seja realizada. Em Milisegundos desde o UNIX Epoch."
+          type: integer
+          format: int64
+          example: 1449573146150
+        data_vencimento_bloqueio:
+          description: "Data maxima antes de realizar o bloqueio da vaga. Em Milisegundos desde o UNIX Epoch."
+          type: integer
+          format: int64
+          example: 1449573146150
+        data_cancelamento: 
+          description: "Data de cancelamento do Lançamenbto Financeiro. Em Milisegundos desde o UNIX Epoch."
+          type: integer
+          format: int64
+          example: 1449573146150
+        valor:
+          description: "Valor do Lançamento Financeiro. Sem pontuação. EX: R$100,00 = 10000"
+          type: integer
+          example: 15000
+        forma_pagamento:
+          $ref: '#/components/schemas/TipoPagamentoEnum'
+        descricao_selo:
+          description: "Descrição de Selo quando aplicável"
+          type: string
+          example: " "
+        cliente_id:
+          description: "Id do Cliente da Vaga"
+          type: integer
+          example: 10
+        garagem_id:
+          description: "Id da garagem da vaga"
+          type: integer
+          example: 5
+        status:
+          $ref: '#/components/schemas/TipoStatusLancamentoFinanceiroEnum'
+        baixa:
+          $ref: '#/components/schemas/DetalhesBaixas'
+          
+    DetalhesBaixas:
+      type: object
+      properties:
+        data_baixa: 
+          description: "Data que a baixa foi realizada. Em Milisegundos desde o UNIX Epoch."
+          type: integer
+          format: int64
+          example: 1449573146150
+        valor:
+          description: "Valor da Baixa do Lançamento. Sem pontuação. EX: R$100,00 = 10000"
+          type: number
+          example: 15000
+        valor_desconto:
+          description: "Valor do Desconto na Baixa do Lançamento. Sem pontuação. EX: R$100,00 = 10000"
+          type: number
+          example: 0
+        cartao:
+          $ref: '#/components/schemas/DetalhesBaixasCartoes'
+      required:
+        - id_lancamento
+        - data_baixa
+        - valor
+        
+    DetalhesBaixasCartoes:
+      type: object
+      properties:
+        cnpj_bandeira:
+          description: "CNPJ de Recebimento"
+          type: string
+          example: "12.234.456/0001-00"
+        descricao_bandeira:
+          description: "Descrição da Bandeira de Pagto"
+          type: string
+          example: "MASTER CARD"
+        cnpj_operadora:
+          description: "CNPJ do Gateway de Pagamento"
+          type: string
+          example: "12.234.456/0001-00"
+        descricao_operadora:
+          description: "Descrição do Gateway"
+          type: string
+          example: "STONE"
+        transacao:
+          description: "Comprovante Transação"          
+          type: string
+          example: " "
+        autorizacao:
+          description: "Autorização da Transação"          
+          type: string
+          example: " "
+                  
+    BaixaLancamentoFinanceiroRequest:
+      $ref: '#/components/schemas/DetalhesBaixaLancamentoFinanceiro'
+  
+    DetalhesBaixaLancamentoFinanceiro:
+      allOf:
+        - type: object
+          properties:
+            id_lancamento:
+              description: ID do lancamento financeiro que será baixado
+              type: integer
+              format: int64
+              example: 54335      
+        - $ref: '#/components/schemas/DetalhesBaixas'
+        
+                  
+                  
+                  
+                  
+                  
+                  
+                  
+                  
+                  
+                  
