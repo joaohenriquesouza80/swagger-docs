@@ -127,7 +127,7 @@ info:
       
 
 servers:    
-  - url: https://homologacao.parkingplus.com.br/servicos/integracaoportalmensalista/v2
+  - url: http://homologacao.parkingplus.com.br/servicos/integracaoportalmensalista/v2
 
 paths:
   /login:
